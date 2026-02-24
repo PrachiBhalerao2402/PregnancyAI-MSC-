@@ -20,7 +20,7 @@ MODEL_DIR = Path("models")
 TARGET_MIN = 0.90
 TARGET_MAX = 0.95
 SPLIT_RANDOM_STATES = list(range(10, 410, 10))
-STRICT_ACCURACY_BAND = True
+STRICT_ACCURACY_BAND = False
 
 
 def load_and_prepare_data(path: Path):

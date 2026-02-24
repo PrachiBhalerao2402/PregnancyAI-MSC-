@@ -33,30 +33,44 @@ model = artifact["model"]
 scaler = artifact["scaler"]
 feature_columns = artifact["feature_columns"]
 
+
+def parse_number(value: str, label: str, as_int: bool = False):
+    value = value.strip()
+    if value == "":
+        raise ValueError(f"Please enter {label}.")
+    try:
+        return int(float(value)) if as_int else float(value)
+    except ValueError as exc:
+        raise ValueError(f"Invalid value for {label}. Use numeric input.") from exc
+
+
 with st.container():
     st.markdown('<div class="form-wrap">', unsafe_allow_html=True)
     st.subheader("Health Details")
-    st.markdown("<p class='small-muted'>Fill in maternal health details and click <b>Check Risk Level</b>.</p>", unsafe_allow_html=True)
+    st.markdown(
+        "<p class='small-muted'>Fill in maternal health details and click <b>Check Risk Level</b>.</p>",
+        unsafe_allow_html=True,
+    )
 
-    age = st.slider("Age", 18, 45, 27)
-    blood_pressure = st.slider("Blood Pressure (mmHg)", 80, 180, 118)
-    blood_sugar = st.slider("Blood Sugar (mg/dL)", 60, 250, 98)
-    body_temperature = st.slider("Body Temperature (°F)", 96.0, 104.0, 98.4, 0.1)
-    heart_rate = st.slider("Heart Rate (bpm)", 50, 150, 82)
-    hemoglobin = st.slider("Hemoglobin Level (g/dL)", 7.0, 16.0, 11.8, 0.1)
-    urine_protein = st.slider("Urine Protein Level (mg/dL)", 0, 500, 120)
+    age = st.text_input("Age", value="27", placeholder="e.g. 28")
+    blood_pressure = st.text_input("Blood Pressure (mmHg)", value="118", placeholder="e.g. 120")
+    blood_sugar = st.text_input("Blood Sugar (mg/dL)", value="98", placeholder="e.g. 100")
+    body_temperature = st.text_input("Body Temperature (°F)", value="98.4", placeholder="e.g. 98.6")
+    heart_rate = st.text_input("Heart Rate (bpm)", value="82", placeholder="e.g. 80")
+    hemoglobin = st.text_input("Hemoglobin Level (g/dL)", value="11.8", placeholder="e.g. 12.5")
+    urine_protein = st.text_input("Urine Protein Level (mg/dL)", value="120", placeholder="e.g. 30")
 
-    gravida = st.number_input("Number of Previous Pregnancies (Gravida)", min_value=0, max_value=12, value=1, step=1)
-    para = st.number_input("Number of Previous Births (Para)", min_value=0, max_value=12, value=0, step=1)
+    gravida = st.text_input("Number of Previous Pregnancies (Gravida)", value="1", placeholder="e.g. 2")
+    para = st.text_input("Number of Previous Births (Para)", value="0", placeholder="e.g. 1")
 
     col1, col2 = st.columns(2)
     with col1:
-        weight = st.slider("Weight (kg)", 35.0, 140.0, 68.0, 0.5)
+        weight = st.text_input("Weight (kg)", value="68", placeholder="e.g. 65")
     with col2:
-        height = st.slider("Height (cm)", 135.0, 190.0, 158.0, 0.5)
+        height = st.text_input("Height (cm)", value="158", placeholder="e.g. 160")
 
     complications = st.selectbox("Previous Pregnancy Complications", ["No", "Yes"])
-    stress_level = st.slider("Stress Level", 0, 10, 4)
+    stress_level = st.text_input("Stress Level (0-10)", value="4", placeholder="e.g. 5")
     physical_activity = st.selectbox("Physical Activity Level", ["Low", "Moderate", "High"])
     edema = st.radio("Edema", ["No", "Yes"], horizontal=True)
     smoking_alcohol = st.radio("Smoking / Alcohol History", ["No", "Yes"], horizontal=True)
@@ -66,24 +80,28 @@ with st.container():
     st.markdown("</div>", unsafe_allow_html=True)
 
 if predict_btn:
-    input_payload = {
-        "Age": age,
-        "BloodPressure": float(blood_pressure),
-        "BloodSugar": float(blood_sugar),
-        "BodyTemperature": float(body_temperature),
-        "HeartRate": int(heart_rate),
-        "Hemoglobin": float(hemoglobin),
-        "UrineProtein": float(urine_protein),
-        "Gravida": int(gravida),
-        "Para": int(para),
-        "Weight": float(weight),
-        "Height": float(height),
-        "PreviousPregnancyComplications": 1 if complications == "Yes" else 0,
-        "StressLevel": int(stress_level),
-        "PhysicalActivityLevel": {"Low": 0, "Moderate": 1, "High": 2}[physical_activity],
-        "Edema": 1 if edema == "Yes" else 0,
-        "SmokingAlcoholHistory": 1 if smoking_alcohol == "Yes" else 0,
-    }
+    try:
+        input_payload = {
+            "Age": parse_number(age, "Age", as_int=True),
+            "BloodPressure": parse_number(blood_pressure, "Blood Pressure"),
+            "BloodSugar": parse_number(blood_sugar, "Blood Sugar"),
+            "BodyTemperature": parse_number(body_temperature, "Body Temperature"),
+            "HeartRate": parse_number(heart_rate, "Heart Rate", as_int=True),
+            "Hemoglobin": parse_number(hemoglobin, "Hemoglobin"),
+            "UrineProtein": parse_number(urine_protein, "Urine Protein"),
+            "Gravida": parse_number(gravida, "Gravida", as_int=True),
+            "Para": parse_number(para, "Para", as_int=True),
+            "Weight": parse_number(weight, "Weight"),
+            "Height": parse_number(height, "Height"),
+            "PreviousPregnancyComplications": 1 if complications == "Yes" else 0,
+            "StressLevel": parse_number(stress_level, "Stress Level", as_int=True),
+            "PhysicalActivityLevel": {"Low": 0, "Moderate": 1, "High": 2}[physical_activity],
+            "Edema": 1 if edema == "Yes" else 0,
+            "SmokingAlcoholHistory": 1 if smoking_alcohol == "Yes" else 0,
+        }
+    except ValueError as err:
+        st.error(str(err))
+        st.stop()
 
     sample = pd.DataFrame([input_payload])[feature_columns]
     sample_scaled = scaler.transform(sample)

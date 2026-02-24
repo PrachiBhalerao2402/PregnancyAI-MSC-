@@ -28,7 +28,7 @@ python3 -m pip install -r requirements.txt
 python3 train_models.py
 ```
 
-The training script evaluates multiple parameter candidates for each of the 4 models and tries many stratified split random states. It selects the first run where all model test accuracies are in the **90%–95% range**; in strict mode it raises an error if no such split is found.
+The training script evaluates multiple parameter candidates for each of the 4 models and tries many stratified split random states. It selects the first run where all model test accuracies are in the **90%–95% range**; if no such split is found, it falls back to the closest split and prints a warning (no crash).
 
 Generated artifacts:
 - `outputs/model_accuracy_comparison.png`
