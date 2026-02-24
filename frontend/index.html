@@ -12,19 +12,19 @@
         <h1>Health Details</h1>
 
         <form id="risk-form" class="health-form">
-          <label>Age <input type="number" name="Age" placeholder="e.g. 28" required /></label>
-          <label>Blood Pressure (mmHg) <input type="number" name="BloodPressure" placeholder="e.g. 120" required /></label>
-          <label>Blood Sugar (mg/dL) <input type="number" name="BloodSugar" placeholder="e.g. 100" required /></label>
-          <label>Body Temperature (°F) <input type="number" step="0.1" name="BodyTemperature" placeholder="e.g. 98.6" required /></label>
-          <label>Heart Rate (bpm) <input type="number" name="HeartRate" placeholder="e.g. 80" required /></label>
-          <label>Hemoglobin Level (g/dL) <input type="number" step="0.1" name="Hemoglobin" placeholder="e.g. 12.5" required /></label>
-          <label>Urine Protein Level (mg/dL) <input type="number" name="UrineProtein" placeholder="e.g. 30" required /></label>
-          <label>Number of Previous Pregnancies (Gravida) <input type="number" name="Gravida" placeholder="e.g. 2" required /></label>
-          <label>Number of Previous Births (Para) <input type="number" name="Para" placeholder="e.g. 1" required /></label>
+          <label>Age <input type="text" inputmode="numeric" name="Age" placeholder="e.g. 28" required /></label>
+          <label>Blood Pressure (mmHg) <input type="text" inputmode="decimal" name="BloodPressure" placeholder="e.g. 120" required /></label>
+          <label>Blood Sugar (mg/dL) <input type="text" inputmode="decimal" name="BloodSugar" placeholder="e.g. 100" required /></label>
+          <label>Body Temperature (°F) <input type="text" inputmode="decimal" name="BodyTemperature" placeholder="e.g. 98.6" required /></label>
+          <label>Heart Rate (bpm) <input type="text" inputmode="numeric" name="HeartRate" placeholder="e.g. 80" required /></label>
+          <label>Hemoglobin Level (g/dL) <input type="text" inputmode="decimal" name="Hemoglobin" placeholder="e.g. 12.5" required /></label>
+          <label>Urine Protein Level (mg/dL) <input type="text" inputmode="decimal" name="UrineProtein" placeholder="e.g. 30" required /></label>
+          <label>Number of Previous Pregnancies (Gravida) <input type="text" inputmode="numeric" name="Gravida" placeholder="e.g. 2" required /></label>
+          <label>Number of Previous Births (Para) <input type="text" inputmode="numeric" name="Para" placeholder="e.g. 1" required /></label>
 
           <div class="two-col">
-            <label>Weight (kg) <input type="number" step="0.1" name="Weight" placeholder="e.g. 65" required /></label>
-            <label>Height (cm) <input type="number" step="0.1" name="Height" placeholder="e.g. 160" required /></label>
+            <label>Weight (kg) <input type="text" inputmode="decimal" name="Weight" placeholder="e.g. 65" required /></label>
+            <label>Height (cm) <input type="text" inputmode="decimal" name="Height" placeholder="e.g. 160" required /></label>
           </div>
 
           <label>
@@ -62,7 +62,7 @@
           </fieldset>
 
           <button type="submit" class="btn-primary">Check Risk Level</button>
-          <button type="button" class="btn-secondary">⍟ Talk to BabyBloom AI</button>
+          <button type="button" class="btn-secondary">◉ Talk to BabyBloom AI</button>
         </form>
       </section>
     </main>

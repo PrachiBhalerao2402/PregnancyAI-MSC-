@@ -3,11 +3,11 @@ const risk = (params.get("risk") || "low").toLowerCase();
 
 const heading = document.getElementById("riskHeading");
 const strip = document.getElementById("riskStrip");
-const card = document.getElementById("resultCard");
 const icon = document.getElementById("statusIcon");
 const reasonList = document.getElementById("reasonList");
-const adviceBox = document.getElementById("adviceBox");
-const adviceText = document.getElementById("adviceText");
+const adviceLink = document.getElementById("adviceLink");
+
+adviceLink.href = `advice.html?risk=${risk === "medium" ? "medium" : "low"}`;
 
 if (risk === "medium") {
   heading.textContent = "Medium Risk";
@@ -25,9 +25,4 @@ if (risk === "medium") {
     <li>One or more risk factors need active medical follow-up</li>
     <li>Potential signs of complication require timely review</li>
   `;
-
-  adviceBox.style.background = "#f1d7d2";
-  adviceText.textContent = "Please consult your gynecologist soon. Follow a low-sodium diet, rest well, stay hydrated, and attend regular prenatal monitoring.";
-} else {
-  heading.textContent = "Low Risk";
 }
