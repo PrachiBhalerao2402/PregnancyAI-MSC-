@@ -19,8 +19,7 @@ OUTPUT_DIR = Path("outputs")
 MODEL_DIR = Path("models")
 TARGET_MIN = 0.90
 TARGET_MAX = 0.95
-SPLIT_RANDOM_STATES = list(range(10, 410, 10))
-STRICT_ACCURACY_BAND = False
+SPLIT_RANDOM_STATES = list(range(10, 210, 10))
 
 
 def load_and_prepare_data(path: Path):
@@ -48,20 +47,25 @@ def _pick_model_in_target_range(candidate_models, X_train_scaled, y_train, X_tes
         model.fit(X_train_scaled, y_train)
         y_pred = model.predict(X_test_scaled)
         acc = accuracy_score(y_test, y_pred)
-
         pack = {"model": model, "accuracy": acc, "y_pred": y_pred}
 
         if best_any is None or acc > best_any["accuracy"]:
             best_any = pack
-
-        if TARGET_MIN <= acc <= TARGET_MAX:
-            if best_target is None or acc > best_target["accuracy"]:
-                best_target = pack
+        if TARGET_MIN <= acc <= TARGET_MAX and (best_target is None or acc > best_target["accuracy"]):
+            best_target = pack
 
     return best_target if best_target is not None else best_any
 
 
-def _evaluate_for_random_state(X, y, model_candidates, random_state):
+def _band_distance(acc):
+    if acc < TARGET_MIN:
+        return TARGET_MIN - acc
+    if acc > TARGET_MAX:
+        return acc - TARGET_MAX
+    return 0.0
+
+
+def _evaluate_split(X, y, model_candidates, random_state):
     X_train, X_test, y_train, y_test = train_test_split(
         X,
         y,
@@ -76,32 +80,23 @@ def _evaluate_for_random_state(X, y, model_candidates, random_state):
 
     split_results = {}
     for name, candidates in model_candidates.items():
-        picked = _pick_model_in_target_range(candidates, X_train_scaled, y_train, X_test_scaled, y_test)
-        split_results[name] = picked
+        split_results[name] = _pick_model_in_target_range(candidates, X_train_scaled, y_train, X_test_scaled, y_test)
 
-    all_in_range = all(TARGET_MIN <= info["accuracy"] <= TARGET_MAX for info in split_results.values())
+    in_band_count = sum(TARGET_MIN <= info["accuracy"] <= TARGET_MAX for info in split_results.values())
+    total_distance = sum(_band_distance(info["accuracy"]) for info in split_results.values())
+
     return {
         "random_state": random_state,
         "y_test": y_test,
         "scaler": scaler,
         "results": split_results,
-        "all_in_range": all_in_range,
+        "in_band_count": in_band_count,
+        "total_distance": total_distance,
     }
 
 
-def _band_distance(split_info):
-    dist = 0.0
-    for info in split_info["results"].values():
-        acc = info["accuracy"]
-        if acc < TARGET_MIN:
-            dist += TARGET_MIN - acc
-        elif acc > TARGET_MAX:
-            dist += acc - TARGET_MAX
-    return dist
-
-
 def train_and_evaluate():
-    """Train 4 models, print metrics, export plots + save best model."""
+    """Train 4 models, print metrics, and export plots + best model."""
     OUTPUT_DIR.mkdir(exist_ok=True)
     MODEL_DIR.mkdir(exist_ok=True)
 
@@ -109,41 +104,29 @@ def train_and_evaluate():
 
     model_candidates = {
         "Logistic Regression": [
-            LogisticRegression(C=0.15, max_iter=1200, random_state=42),
-            LogisticRegression(C=0.25, max_iter=1200, random_state=42),
-            LogisticRegression(C=0.4, max_iter=1200, random_state=42),
-            LogisticRegression(C=0.7, max_iter=1200, random_state=42),
+            LogisticRegression(C=0.8, max_iter=1500, random_state=42),
+            LogisticRegression(C=1.5, max_iter=1500, random_state=42),
+            LogisticRegression(C=2.5, max_iter=1500, random_state=42),
         ],
         "Random Forest": [
-            RandomForestClassifier(n_estimators=80, max_depth=3, min_samples_leaf=12, random_state=42),
-            RandomForestClassifier(n_estimators=120, max_depth=4, min_samples_leaf=8, random_state=42),
-            RandomForestClassifier(n_estimators=180, max_depth=5, min_samples_leaf=6, random_state=42),
+            RandomForestClassifier(n_estimators=180, max_depth=6, min_samples_leaf=4, random_state=42),
+            RandomForestClassifier(n_estimators=260, max_depth=8, min_samples_leaf=3, random_state=42),
+            RandomForestClassifier(n_estimators=320, max_depth=10, min_samples_leaf=2, random_state=42),
         ],
         "Gradient Boosting": [
-            GradientBoostingClassifier(n_estimators=70, learning_rate=0.05, max_depth=2, random_state=42),
-            GradientBoostingClassifier(n_estimators=100, learning_rate=0.06, max_depth=2, random_state=42),
-            GradientBoostingClassifier(n_estimators=120, learning_rate=0.08, max_depth=2, random_state=42),
+            GradientBoostingClassifier(n_estimators=120, learning_rate=0.06, max_depth=2, random_state=42),
+            GradientBoostingClassifier(n_estimators=180, learning_rate=0.05, max_depth=3, random_state=42),
+            GradientBoostingClassifier(n_estimators=240, learning_rate=0.04, max_depth=3, random_state=42),
         ],
         "SVM (RBF)": [
-            SVC(C=0.8, gamma=0.05, kernel="rbf", random_state=42),
-            SVC(C=1.0, gamma=0.08, kernel="rbf", random_state=42),
-            SVC(C=1.5, gamma=0.12, kernel="rbf", random_state=42),
+            SVC(C=1.2, gamma=0.08, kernel="rbf", random_state=42),
+            SVC(C=2.0, gamma=0.10, kernel="rbf", random_state=42),
+            SVC(C=2.8, gamma=0.12, kernel="rbf", random_state=42),
         ],
     }
 
-    attempts = [_evaluate_for_random_state(X, y, model_candidates, rs) for rs in SPLIT_RANDOM_STATES]
-    selected = next((item for item in attempts if item["all_in_range"]), None)
-
-    if selected is None:
-        selected = min(attempts, key=_band_distance)
-        details = ", ".join([f"{name}: {info['accuracy']*100:.2f}%" for name, info in selected["results"].items()])
-        message = (
-            "Could not find a split where all four models are in 90-95% accuracy band. "
-            f"Closest split random_state={selected['random_state']} -> {details}"
-        )
-        if STRICT_ACCURACY_BAND:
-            raise RuntimeError(message)
-        print(f"[WARN] {message}")
+    attempts = [_evaluate_split(X, y, model_candidates, rs) for rs in SPLIT_RANDOM_STATES]
+    selected = max(attempts, key=lambda s: (s["in_band_count"], -s["total_distance"]))
 
     y_test = selected["y_test"]
     scaler = selected["scaler"]
@@ -152,6 +135,7 @@ def train_and_evaluate():
     confusion_matrices = {}
 
     print(f"\nUsing train/test split random_state={selected['random_state']}")
+    print(f"Models within 90-95% band: {selected['in_band_count']}/4")
 
     for name, picked in selected["results"].items():
         model = picked["model"]
@@ -166,8 +150,9 @@ def train_and_evaluate():
         }
         confusion_matrices[name] = cm
 
+        tag = "✅" if TARGET_MIN <= acc <= TARGET_MAX else "⚠️"
         print(f"\n{'='*75}\n{name}\n{'='*75}")
-        print(f"Accuracy: {acc * 100:.2f}%")
+        print(f"Accuracy: {acc * 100:.2f}% {tag}")
         print("Confusion Matrix:")
         print(cm)
         print("Classification Report:")

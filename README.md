@@ -10,6 +10,7 @@ This project trains 4 ML classifiers to predict **Low Risk** vs **Medium Risk** 
 - `train_models.py` - training, evaluation, visualization, model export.
 - `app.py` - Streamlit prediction interface.
 - `frontend/index.html` - health details form UI with text-box inputs.
+- Streamlit `app.py` uses empty-first text boxes + Get Advice action.
 - `frontend/result.html` - prediction result screen.
 - `frontend/advice.html` - get-advice page for low/medium risk.
 - `frontend/styles.css` - frontend styling.
@@ -28,7 +29,7 @@ python3 -m pip install -r requirements.txt
 python3 train_models.py
 ```
 
-The training script evaluates multiple parameter candidates for each of the 4 models and tries many stratified split random states. It selects the first run where all model test accuracies are in the **90%–95% range**; if no such split is found, it falls back to the closest split and prints a warning (no crash).
+The training script evaluates multiple parameter candidates for each model and many stratified split states, then selects the split with the highest number of models in the **90%–95% range** (and lowest total distance from this band).
 
 Generated artifacts:
 - `outputs/model_accuracy_comparison.png`

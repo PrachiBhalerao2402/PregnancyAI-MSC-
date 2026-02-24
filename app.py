@@ -52,25 +52,25 @@ with st.container():
         unsafe_allow_html=True,
     )
 
-    age = st.text_input("Age", value="27", placeholder="e.g. 28")
-    blood_pressure = st.text_input("Blood Pressure (mmHg)", value="118", placeholder="e.g. 120")
-    blood_sugar = st.text_input("Blood Sugar (mg/dL)", value="98", placeholder="e.g. 100")
-    body_temperature = st.text_input("Body Temperature (°F)", value="98.4", placeholder="e.g. 98.6")
-    heart_rate = st.text_input("Heart Rate (bpm)", value="82", placeholder="e.g. 80")
-    hemoglobin = st.text_input("Hemoglobin Level (g/dL)", value="11.8", placeholder="e.g. 12.5")
-    urine_protein = st.text_input("Urine Protein Level (mg/dL)", value="120", placeholder="e.g. 30")
+    age = st.text_input("Age", value="", placeholder="e.g. 28")
+    blood_pressure = st.text_input("Blood Pressure (mmHg)", value="", placeholder="e.g. 120")
+    blood_sugar = st.text_input("Blood Sugar (mg/dL)", value="", placeholder="e.g. 100")
+    body_temperature = st.text_input("Body Temperature (°F)", value="", placeholder="e.g. 98.6")
+    heart_rate = st.text_input("Heart Rate (bpm)", value="", placeholder="e.g. 80")
+    hemoglobin = st.text_input("Hemoglobin Level (g/dL)", value="", placeholder="e.g. 12.5")
+    urine_protein = st.text_input("Urine Protein Level (mg/dL)", value="", placeholder="e.g. 30")
 
-    gravida = st.text_input("Number of Previous Pregnancies (Gravida)", value="1", placeholder="e.g. 2")
-    para = st.text_input("Number of Previous Births (Para)", value="0", placeholder="e.g. 1")
+    gravida = st.text_input("Number of Previous Pregnancies (Gravida)", value="", placeholder="e.g. 2")
+    para = st.text_input("Number of Previous Births (Para)", value="", placeholder="e.g. 1")
 
     col1, col2 = st.columns(2)
     with col1:
-        weight = st.text_input("Weight (kg)", value="68", placeholder="e.g. 65")
+        weight = st.text_input("Weight (kg)", value="", placeholder="e.g. 65")
     with col2:
-        height = st.text_input("Height (cm)", value="158", placeholder="e.g. 160")
+        height = st.text_input("Height (cm)", value="", placeholder="e.g. 160")
 
     complications = st.selectbox("Previous Pregnancy Complications", ["No", "Yes"])
-    stress_level = st.text_input("Stress Level (0-10)", value="4", placeholder="e.g. 5")
+    stress_level = st.text_input("Stress Level (0-10)", value="", placeholder="e.g. 5")
     physical_activity = st.selectbox("Physical Activity Level", ["Low", "Moderate", "High"])
     edema = st.radio("Edema", ["No", "Yes"], horizontal=True)
     smoking_alcohol = st.radio("Smoking / Alcohol History", ["No", "Yes"], horizontal=True)
@@ -109,7 +109,10 @@ if predict_btn:
 
     if prediction == 0:
         st.success("✅ Predicted Risk Level: Low Risk")
+        advice = "Great signs overall. Continue prenatal vitamins, hydration, balanced nutrition, and regular antenatal checkups."
     else:
         st.error("🚨 Predicted Risk Level: Medium Risk")
+        advice = "Please consult your doctor soon. Monitor BP/sugar closely, reduce stress, follow medication/diet guidance, and attend frequent follow-ups."
 
-    st.info(f"Model used: {artifact['model_name']}")
+    if st.button("Get Advice"):
+        st.info(advice)
