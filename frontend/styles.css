@@ -1,0 +1,113 @@
+:root {
+  --bg: #f5efef;
+  --card: #f6efef;
+  --border: #e6d2d2;
+  --text: #4c3c3c;
+  --muted: #8b7b7b;
+  --primary: #d2465e;
+  --primary-dark: #c03b52;
+  --success-bg: #e6f6ec;
+  --success-text: #1d6f3f;
+  --danger-bg: #fde9ec;
+  --danger-text: #a0263b;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: "Inter", "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.card {
+  width: min(100%, 640px);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+}
+
+h1 {
+  text-align: center;
+  font-size: 30px;
+  margin: 6px 0 18px;
+}
+
+form { display: grid; gap: 12px; }
+label, legend { font-size: 14px; color: var(--text); }
+
+input, select {
+  width: 100%;
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #f9f2f2;
+  padding: 11px 12px;
+  font-size: 14px;
+  outline: none;
+}
+
+input:focus, select:focus { border-color: #d98797; }
+
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.range-label { margin-bottom: -6px; }
+input[type="range"] {
+  accent-color: var(--primary);
+  padding: 0;
+}
+
+fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+.inline {
+  margin-right: 18px;
+  font-size: 14px;
+}
+.inline input { width: auto; margin-right: 6px; }
+
+button {
+  border: none;
+  border-radius: 12px;
+  padding: 11px 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.primary {
+  background: var(--primary);
+  color: white;
+}
+.primary:hover { background: var(--primary-dark); }
+.secondary {
+  border: 1px solid var(--border);
+  background: #f7f0f0;
+  color: #574646;
+}
+
+.result {
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-weight: 600;
+}
+.result.low { background: var(--success-bg); color: var(--success-text); }
+.result.medium { background: var(--danger-bg); color: var(--danger-text); }
+.hidden { display: none; }
+
+@media (max-width: 560px) {
+  .two-col { grid-template-columns: 1fr; }
+  h1 { font-size: 24px; }
+}
