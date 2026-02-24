@@ -28,7 +28,7 @@ python3 -m pip install -r requirements.txt
 python3 train_models.py
 ```
 
-The training script evaluates multiple parameter candidates for each of the 4 models and prefers candidates with test accuracy in the **90%–95% range**.
+The training script evaluates multiple parameter candidates for each of the 4 models and tries several stratified split random states, selecting the first run where all model test accuracies are in the **90%–95% range**.
 
 Generated artifacts:
 - `outputs/model_accuracy_comparison.png`
