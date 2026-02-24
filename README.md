@@ -10,7 +10,7 @@ This project trains 4 ML classifiers to predict **Low Risk** vs **Medium Risk** 
 - `train_models.py` - training, evaluation, visualization, model export.
 - `app.py` - Streamlit prediction interface.
 - `frontend/index.html` - health details form UI with text-box inputs.
-- Streamlit `app.py` uses empty-first text boxes + Get Advice action.
+- Streamlit `app.py` uses empty-first text boxes + personalized Get Advice action and hides model-name text.
 - `frontend/result.html` - prediction result screen.
 - `frontend/advice.html` - get-advice page for low/medium risk.
 - `frontend/styles.css` - frontend styling.

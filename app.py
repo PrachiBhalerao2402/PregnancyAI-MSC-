@@ -9,12 +9,14 @@ st.set_page_config(page_title="Pregnancy Risk Predictor", page_icon="🩺", layo
 st.markdown(
     """
     <style>
-      .stApp {background: linear-gradient(180deg,#f4fbff 0%, #eef7ff 100%);} 
-      .form-wrap {background: white; border-radius: 16px; padding: 1.25rem 1.25rem 0.75rem 1.25rem;
-                  box-shadow: 0 6px 24px rgba(40,78,120,0.08); border: 1px solid #dceaf8;}
+      .stApp {background: linear-gradient(180deg,#f7fbff 0%, #eef7ff 100%);} 
+      .form-wrap {background: #ffffff; border-radius: 16px; padding: 1.2rem 1.2rem 0.8rem 1.2rem;
+                  box-shadow: 0 8px 24px rgba(40,78,120,0.10); border: 1px solid #dceaf8;}
       h1, h2, h3 {color: #1f4b7a !important;}
-      .small-muted {color:#5a7288; font-size:0.9rem; margin-top:-0.5rem; margin-bottom:1rem;}
-      .stButton>button {width:100%; border-radius:10px; padding:0.55rem 0.9rem; font-weight:600;}
+      .small-muted {color:#5a7288; font-size:0.92rem; margin-top:-0.5rem; margin-bottom:1rem;}
+      .stButton>button {width:100%; border-radius:10px; padding:0.58rem 0.9rem; font-weight:600;}
+      .advice-card {background:#fff7f7; border:1px solid #ffd8df; border-radius:12px; padding:0.8rem 0.9rem;}
+      .advice-title {color:#b32648; font-weight:700; margin-bottom:0.35rem;}
     </style>
     """,
     unsafe_allow_html=True,
@@ -42,6 +44,30 @@ def parse_number(value: str, label: str, as_int: bool = False):
         return int(float(value)) if as_int else float(value)
     except ValueError as exc:
         raise ValueError(f"Invalid value for {label}. Use numeric input.") from exc
+
+
+def build_advice(payload, prediction):
+    notes = []
+    if payload["BloodPressure"] >= 130:
+        notes.append("Monitor blood pressure daily and reduce salty foods.")
+    if payload["BloodSugar"] >= 120:
+        notes.append("Limit sugary foods and follow a low-glycemic diet plan.")
+    if payload["Hemoglobin"] < 10.5:
+        notes.append("Increase iron-rich foods and discuss iron supplements with your doctor.")
+    if payload["StressLevel"] >= 7:
+        notes.append("Use daily stress-reduction routines (sleep, breathing, light walking).")
+    if payload["Edema"] == 1:
+        notes.append("Track swelling and seek medical review if swelling worsens.")
+
+    if prediction == 0:
+        base = "Great signs overall. Continue prenatal vitamins, hydration, balanced nutrition, and regular antenatal checkups."
+    else:
+        base = "Please consult your doctor soon for targeted monitoring and a safer pregnancy plan."
+
+    if not notes:
+        notes = ["Keep routine antenatal visits and maintain healthy lifestyle habits."]
+
+    return base, notes[:4]
 
 
 with st.container():
@@ -76,7 +102,6 @@ with st.container():
     smoking_alcohol = st.radio("Smoking / Alcohol History", ["No", "Yes"], horizontal=True)
 
     predict_btn = st.button("Check Risk Level", type="primary")
-
     st.markdown("</div>", unsafe_allow_html=True)
 
 if predict_btn:
@@ -109,10 +134,15 @@ if predict_btn:
 
     if prediction == 0:
         st.success("✅ Predicted Risk Level: Low Risk")
-        advice = "Great signs overall. Continue prenatal vitamins, hydration, balanced nutrition, and regular antenatal checkups."
     else:
         st.error("🚨 Predicted Risk Level: Medium Risk")
-        advice = "Please consult your doctor soon. Monitor BP/sugar closely, reduce stress, follow medication/diet guidance, and attend frequent follow-ups."
+
+    base_advice, notes = build_advice(input_payload, prediction)
 
     if st.button("Get Advice"):
-        st.info(advice)
+        st.markdown('<div class="advice-card">', unsafe_allow_html=True)
+        st.markdown('<div class="advice-title">Personalized Health Advice</div>', unsafe_allow_html=True)
+        st.write(base_advice)
+        for tip in notes:
+            st.write(f"• {tip}")
+        st.markdown('</div>', unsafe_allow_html=True)
