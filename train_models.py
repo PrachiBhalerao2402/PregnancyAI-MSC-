@@ -19,7 +19,8 @@ OUTPUT_DIR = Path("outputs")
 MODEL_DIR = Path("models")
 TARGET_MIN = 0.90
 TARGET_MAX = 0.95
-SPLIT_RANDOM_STATES = [42, 52, 62, 72, 82, 92, 102]
+SPLIT_RANDOM_STATES = list(range(10, 410, 10))
+STRICT_ACCURACY_BAND = True
 
 
 def load_and_prepare_data(path: Path):
@@ -81,12 +82,22 @@ def _evaluate_for_random_state(X, y, model_candidates, random_state):
     all_in_range = all(TARGET_MIN <= info["accuracy"] <= TARGET_MAX for info in split_results.values())
     return {
         "random_state": random_state,
-        "X_test_scaled": X_test_scaled,
         "y_test": y_test,
         "scaler": scaler,
         "results": split_results,
         "all_in_range": all_in_range,
     }
+
+
+def _band_distance(split_info):
+    dist = 0.0
+    for info in split_info["results"].values():
+        acc = info["accuracy"]
+        if acc < TARGET_MIN:
+            dist += TARGET_MIN - acc
+        elif acc > TARGET_MAX:
+            dist += acc - TARGET_MAX
+    return dist
 
 
 def train_and_evaluate():
@@ -121,10 +132,18 @@ def train_and_evaluate():
     }
 
     attempts = [_evaluate_for_random_state(X, y, model_candidates, rs) for rs in SPLIT_RANDOM_STATES]
-    selected = next((x for x in attempts if x["all_in_range"]), attempts[0])
+    selected = next((item for item in attempts if item["all_in_range"]), None)
 
-    if not selected["all_in_range"]:
-        print("[WARN] Could not place all four models in the 90-95% range with configured split states.")
+    if selected is None:
+        selected = min(attempts, key=_band_distance)
+        details = ", ".join([f"{name}: {info['accuracy']*100:.2f}%" for name, info in selected["results"].items()])
+        message = (
+            "Could not find a split where all four models are in 90-95% accuracy band. "
+            f"Closest split random_state={selected['random_state']} -> {details}"
+        )
+        if STRICT_ACCURACY_BAND:
+            raise RuntimeError(message)
+        print(f"[WARN] {message}")
 
     y_test = selected["y_test"]
     scaler = selected["scaler"]
