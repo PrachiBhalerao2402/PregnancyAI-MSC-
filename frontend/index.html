@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Health Details</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="page form-page">
+      <section class="card form-card">
+        <h1>Health Details</h1>
+
+        <form id="risk-form" class="health-form">
+          <label>Age <input type="number" name="Age" placeholder="e.g. 28" required /></label>
+          <label>Blood Pressure (mmHg) <input type="number" name="BloodPressure" placeholder="e.g. 120" required /></label>
+          <label>Blood Sugar (mg/dL) <input type="number" name="BloodSugar" placeholder="e.g. 100" required /></label>
+          <label>Body Temperature (°F) <input type="number" step="0.1" name="BodyTemperature" placeholder="e.g. 98.6" required /></label>
+          <label>Heart Rate (bpm) <input type="number" name="HeartRate" placeholder="e.g. 80" required /></label>
+          <label>Hemoglobin Level (g/dL) <input type="number" step="0.1" name="Hemoglobin" placeholder="e.g. 12.5" required /></label>
+          <label>Urine Protein Level (mg/dL) <input type="number" name="UrineProtein" placeholder="e.g. 30" required /></label>
+          <label>Number of Previous Pregnancies (Gravida) <input type="number" name="Gravida" placeholder="e.g. 2" required /></label>
+          <label>Number of Previous Births (Para) <input type="number" name="Para" placeholder="e.g. 1" required /></label>
+
+          <div class="two-col">
+            <label>Weight (kg) <input type="number" step="0.1" name="Weight" placeholder="e.g. 65" required /></label>
+            <label>Height (cm) <input type="number" step="0.1" name="Height" placeholder="e.g. 160" required /></label>
+          </div>
+
+          <label>
+            Previous Pregnancy Complications
+            <select name="PreviousPregnancyComplications" required>
+              <option value="" selected disabled>Select...</option>
+              <option value="1">Yes</option>
+              <option value="0">No</option>
+            </select>
+          </label>
+
+          <label class="range-label">Stress Level: <span id="stressValue">5</span>/10</label>
+          <input type="range" name="StressLevel" min="0" max="10" value="5" id="stressRange" />
+
+          <label>
+            Physical Activity Level
+            <select name="PhysicalActivityLevel" required>
+              <option value="" selected disabled>Select...</option>
+              <option value="0">Low</option>
+              <option value="1">Moderate</option>
+              <option value="2">High</option>
+            </select>
+          </label>
+
+          <fieldset>
+            <legend>Edema (Swelling in legs/face)?</legend>
+            <label class="inline"><input type="radio" name="Edema" value="1" required /> Yes</label>
+            <label class="inline"><input type="radio" name="Edema" value="0" required /> No</label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Smoking / Alcohol History?</legend>
+            <label class="inline"><input type="radio" name="SmokingAlcoholHistory" value="1" required /> Yes</label>
+            <label class="inline"><input type="radio" name="SmokingAlcoholHistory" value="0" required /> No</label>
+          </fieldset>
+
+          <button type="submit" class="btn-primary">Check Risk Level</button>
+          <button type="button" class="btn-secondary">⍟ Talk to BabyBloom AI</button>
+        </form>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
