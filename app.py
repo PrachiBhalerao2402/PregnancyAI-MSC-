@@ -1,7 +1,13 @@
-"""Streamlit app for pregnancy risk prediction."""
+"""Streamlit app for pregnancy risk prediction with chatbot tab."""
+
+from __future__ import annotations
+
+import os
+from typing import Dict, List
 
 import joblib
 import pandas as pd
+import requests
 import streamlit as st
 
 st.set_page_config(page_title="Pregnancy Risk Predictor", page_icon="🩺", layout="centered")
@@ -9,7 +15,7 @@ st.set_page_config(page_title="Pregnancy Risk Predictor", page_icon="🩺", layo
 st.markdown(
     """
     <style>
-      .stApp {background: linear-gradient(180deg,#fff8f9 0%, #fff1f4 100%);} 
+      .stApp {background: linear-gradient(180deg,#fff8f9 0%, #fff0f5 100%);} 
       .form-wrap {background: #fffafb; border-radius: 16px; padding: 1.2rem 1.2rem 0.8rem 1.2rem;
                   box-shadow: 0 10px 26px rgba(184,74,104,0.10); border: 1px solid #f1d3db;}
       h1, h2, h3 {color: #7f2f47 !important;}
@@ -23,7 +29,7 @@ st.markdown(
 )
 
 st.title("🤰 Pregnancy Risk Prediction System")
-st.caption("Machine Learning powered screening for Low / Medium risk with smart advice")
+st.caption("Low / Medium risk screening + women-health assistant")
 
 try:
     artifact = joblib.load("models/best_pregnancy_risk_model.joblib")
@@ -35,12 +41,14 @@ model = artifact["model"]
 scaler = artifact["scaler"]
 feature_columns = artifact["feature_columns"]
 
-if "last_prediction" not in st.session_state:
-    st.session_state.last_prediction = None
-if "last_payload" not in st.session_state:
-    st.session_state.last_payload = None
-if "risk_level_for_advice" not in st.session_state:
-    st.session_state.risk_level_for_advice = None
+for key, default in {
+    "last_prediction": None,
+    "last_payload": None,
+    "risk_level_for_advice": None,
+    "chat_history": [],
+}.items():
+    if key not in st.session_state:
+        st.session_state[key] = default
 
 
 def parse_number(value: str, label: str, as_int: bool = False):
@@ -54,7 +62,6 @@ def parse_number(value: str, label: str, as_int: bool = False):
 
 
 def risk_tier_for_advice(payload, prediction):
-    """Return low/medium/high tier for advice page (model predicts low/medium)."""
     severity_points = 0
     severity_points += 1 if payload["BloodPressure"] >= 140 else 0
     severity_points += 1 if payload["BloodSugar"] >= 140 else 0
@@ -70,154 +77,196 @@ def risk_tier_for_advice(payload, prediction):
     return "medium"
 
 
-
-
-def chatbot_reply(question: str) -> str:
-    q = question.lower().strip()
-    if not q:
-        return "Please type a question. 🌸"
-    if "diet" in q or "food" in q or "meal" in q:
-        return "Diet: Include iron-rich foods (spinach, lentils, dates), protein (eggs/paneer/fish), fruits, and 2.5–3L water daily. Reduce packaged sugar and excess salt."
-    if "exercise" in q or "walk" in q or "workout" in q:
-        return "Exercise: 20–30 min walk, prenatal stretching, and breathing/yoga 4–5 days per week if your doctor approves. Avoid high-impact routines."
-    if "bp" in q or "pressure" in q:
-        return "High BP care: check BP regularly, lower salt, sleep well, and consult your doctor quickly if readings remain high."
-    if "sugar" in q or "diabetes" in q:
-        return "Sugar care: low-GI meals, more fiber, smaller frequent meals, and regular glucose monitoring are helpful."
-    if "stress" in q or "anxiety" in q:
-        return "Stress care: breathing exercises, hydration, sleep routine, and daily light movement. Seek support from family/doctor."
-    return "I can help with diet plans, exercises, BP/sugar control, supplements, trimester-wise care, and warning signs."
-
 def build_advice(payload, tier):
     if tier == "low":
-        base = "Low Risk: Keep up the good work. Your current profile is favorable for pregnancy health."
+        base = "Low Risk: Your current profile looks stable."
         tips = [
-            "Continue balanced nutrition with protein, iron, calcium, and folate.",
-            "Stay hydrated and maintain regular sleep.",
-            "Do light to moderate physical activity if approved by your doctor.",
-            "Attend routine antenatal checkups on schedule.",
+            "Continue balanced nutrition with iron, folate, calcium, and protein.",
+            "Stay hydrated and keep regular sleep habits.",
+            "Do light to moderate prenatal-safe activity after doctor approval.",
+            "Continue routine antenatal visits.",
         ]
     elif tier == "medium":
-        base = "Medium Risk: You need closer monitoring and lifestyle correction to prevent complications."
+        base = "Medium Risk: You need closer monitoring to avoid complications."
         tips = [
-            "Track blood pressure and blood sugar at home weekly.",
-            "Reduce salt and refined sugar intake.",
-            "Manage stress using breathing exercises and rest.",
-            "Discuss a personalized follow-up plan with your gynecologist.",
+            "Track blood pressure and glucose at home regularly.",
+            "Reduce salt, refined sugar, and fried foods.",
+            "Improve stress management with breathing and walking.",
+            "Plan more frequent review with your gynecologist.",
         ]
     else:
-        base = "High Risk: Please seek medical care urgently for specialist-guided pregnancy management."
+        base = "High Risk: Seek urgent specialist care for safer pregnancy management."
         tips = [
-            "Contact your obstetrician/gynecologist as soon as possible.",
-            "Do not skip monitoring for BP, sugar, and fetal health.",
-            "Follow strict medication and diet instructions from your doctor.",
-            "Visit emergency care immediately if severe headache, swelling, or bleeding occurs.",
+            "Contact your obstetric specialist immediately.",
+            "Do not skip BP/sugar/fetal monitoring.",
+            "Follow strict medication and diet instructions.",
+            "Go to emergency care if severe symptoms appear.",
         ]
 
     if payload["Hemoglobin"] < 10.5:
-        tips.append("Add iron-rich foods and discuss iron supplements.")
+        tips.append("Discuss iron supplementation with your doctor.")
     if payload["StressLevel"] >= 7:
-        tips.append("Prioritize stress reduction and family support.")
+        tips.append("Prioritize rest and emotional support daily.")
 
     return base, tips[:5]
 
 
-with st.container():
-    st.markdown('<div class="form-wrap">', unsafe_allow_html=True)
-    st.subheader("Health Details")
-    st.markdown(
-        "<p class='small-muted'>Fill in maternal health details and click <b>Check Risk Level</b>.</p>",
-        unsafe_allow_html=True,
-    )
+def local_pregnancy_bot(question: str) -> str:
+    q = question.lower().strip()
+    if not q:
+        return "Please type your question 🌸"
 
-    age = st.text_input("Age", value="", placeholder="e.g. 28")
-    blood_pressure = st.text_input("Blood Pressure (mmHg)", value="", placeholder="e.g. 120")
-    blood_sugar = st.text_input("Blood Sugar (mg/dL)", value="", placeholder="e.g. 100")
-    body_temperature = st.text_input("Body Temperature (°F)", value="", placeholder="e.g. 98.6")
-    heart_rate = st.text_input("Heart Rate (bpm)", value="", placeholder="e.g. 80")
-    hemoglobin = st.text_input("Hemoglobin Level (g/dL)", value="", placeholder="e.g. 12.5")
-    urine_protein = st.text_input("Urine Protein Level (mg/dL)", value="", placeholder="e.g. 30")
+    rulebook = {
+        "diet": "Pregnancy diet: include leafy greens, lentils, eggs/paneer/fish, fruits, nuts, and 2.5–3L water daily. Avoid raw/unpasteurized items and excess sugar.",
+        "exercise": "Safe exercise: 20–30 mins walk, pelvic floor work, prenatal stretching/yoga 4–5 days weekly if approved by your doctor.",
+        "bp": "For high BP: reduce salt, monitor BP at home, rest on left side, and keep regular obstetric follow-up.",
+        "pressure": "For high BP: reduce salt, monitor BP at home, rest on left side, and keep regular obstetric follow-up.",
+        "sugar": "For blood sugar: small frequent meals, low-GI carbs, high-fiber vegetables, and regular glucose checks are helpful.",
+        "stress": "Stress support: breathing exercises, proper sleep, hydration, short walks, and talking with family/doctor helps.",
+        "supplement": "Common supplements include folic acid, iron, calcium, and vitamin D based on doctor advice.",
+        "trimester": "Trimester care: 1st—folic acid and nausea care; 2nd—anomaly scan and nutrition; 3rd—BP, fetal movement, and delivery planning.",
+        "warning": "Warning signs: severe headache, vision changes, swelling, bleeding, severe abdominal pain, fluid leak, reduced fetal movement. Seek urgent care.",
+    }
+    for key, answer in rulebook.items():
+        if key in q:
+            return answer
 
-    gravida = st.text_input("Number of Previous Pregnancies (Gravida)", value="", placeholder="e.g. 2")
-    para = st.text_input("Number of Previous Births (Para)", value="", placeholder="e.g. 1")
+    return "I can help with pregnancy diet, exercise, BP/sugar control, trimester care, supplements, and warning signs. Ask a specific question."
 
-    col1, col2 = st.columns(2)
-    with col1:
-        weight = st.text_input("Weight (kg)", value="", placeholder="e.g. 65")
-    with col2:
-        height = st.text_input("Height (cm)", value="", placeholder="e.g. 160")
 
-    complications = st.selectbox("Previous Pregnancy Complications", ["No", "Yes"])
-    stress_level = st.text_input("Stress Level (0-10)", value="", placeholder="e.g. 5")
-    physical_activity = st.selectbox("Physical Activity Level", ["Low", "Moderate", "High"])
-    edema = st.radio("Edema", ["No", "Yes"], horizontal=True)
-    smoking_alcohol = st.radio("Smoking / Alcohol History", ["No", "Yes"], horizontal=True)
+def ask_llm_if_configured(messages: List[Dict[str, str]]) -> str | None:
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if not api_key:
+        return None
 
-    predict_btn = st.button("Check Risk Level", type="primary")
-    st.markdown("</div>", unsafe_allow_html=True)
-
-if predict_btn:
+    model_name = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1/chat/completions")
+    payload = {
+        "model": model_name,
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a compassionate prenatal health assistant. Give safe, practical guidance and remind user to consult doctors for urgent symptoms.",
+            }
+        ]
+        + messages,
+        "temperature": 0.4,
+    }
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     try:
-        input_payload = {
-            "Age": parse_number(age, "Age", as_int=True),
-            "BloodPressure": parse_number(blood_pressure, "Blood Pressure"),
-            "BloodSugar": parse_number(blood_sugar, "Blood Sugar"),
-            "BodyTemperature": parse_number(body_temperature, "Body Temperature"),
-            "HeartRate": parse_number(heart_rate, "Heart Rate", as_int=True),
-            "Hemoglobin": parse_number(hemoglobin, "Hemoglobin"),
-            "UrineProtein": parse_number(urine_protein, "Urine Protein"),
-            "Gravida": parse_number(gravida, "Gravida", as_int=True),
-            "Para": parse_number(para, "Para", as_int=True),
-            "Weight": parse_number(weight, "Weight"),
-            "Height": parse_number(height, "Height"),
-            "PreviousPregnancyComplications": 1 if complications == "Yes" else 0,
-            "StressLevel": parse_number(stress_level, "Stress Level", as_int=True),
-            "PhysicalActivityLevel": {"Low": 0, "Moderate": 1, "High": 2}[physical_activity],
-            "Edema": 1 if edema == "Yes" else 0,
-            "SmokingAlcoholHistory": 1 if smoking_alcohol == "Yes" else 0,
-        }
-    except ValueError as err:
-        st.error(str(err))
-        st.stop()
+        resp = requests.post(url, json=payload, headers=headers, timeout=25)
+        if resp.ok:
+            data = resp.json()
+            return data["choices"][0]["message"]["content"].strip()
+    except Exception:
+        return None
+    return None
 
-    sample = pd.DataFrame([input_payload])[feature_columns]
-    sample_scaled = scaler.transform(sample)
-    prediction = int(model.predict(sample_scaled)[0])
 
-    st.session_state.last_prediction = prediction
-    st.session_state.last_payload = input_payload
-    st.session_state.risk_level_for_advice = risk_tier_for_advice(input_payload, prediction)
+tab_predict, tab_chatbot = st.tabs(["🩺 Risk Prediction", "💬 Women Health Chatbot"])
 
-if st.session_state.last_prediction is not None:
-    if st.session_state.last_prediction == 0:
-        st.success("✅ Predicted Risk Level: Low Risk")
-    else:
-        st.error("🚨 Predicted Risk Level: Medium Risk")
-
-    if st.button("Get Advice"):
-        base, notes = build_advice(st.session_state.last_payload, st.session_state.risk_level_for_advice)
-        st.markdown('<div class="advice-card">', unsafe_allow_html=True)
+with tab_predict:
+    with st.container():
+        st.markdown('<div class="form-wrap">', unsafe_allow_html=True)
+        st.subheader("Health Details")
         st.markdown(
-            f'<div class="advice-title">Personalized Health Advice ({st.session_state.risk_level_for_advice.title()} Risk)</div>',
+            "<p class='small-muted'>Fill in maternal health details and click <b>Check Risk Level</b>.</p>",
             unsafe_allow_html=True,
         )
-        st.write(base)
-        for tip in notes:
-            st.write(f"• {tip}")
+
+        age = st.text_input("Age", value="", placeholder="e.g. 28")
+        blood_pressure = st.text_input("Blood Pressure (mmHg)", value="", placeholder="e.g. 120")
+        blood_sugar = st.text_input("Blood Sugar (mg/dL)", value="", placeholder="e.g. 100")
+        body_temperature = st.text_input("Body Temperature (°F)", value="", placeholder="e.g. 98.6")
+        heart_rate = st.text_input("Heart Rate (bpm)", value="", placeholder="e.g. 80")
+        hemoglobin = st.text_input("Hemoglobin Level (g/dL)", value="", placeholder="e.g. 12.5")
+        urine_protein = st.text_input("Urine Protein Level (mg/dL)", value="", placeholder="e.g. 30")
+
+        gravida = st.text_input("Number of Previous Pregnancies (Gravida)", value="", placeholder="e.g. 2")
+        para = st.text_input("Number of Previous Births (Para)", value="", placeholder="e.g. 1")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            weight = st.text_input("Weight (kg)", value="", placeholder="e.g. 65")
+        with col2:
+            height = st.text_input("Height (cm)", value="", placeholder="e.g. 160")
+
+        complications = st.selectbox("Previous Pregnancy Complications", ["No", "Yes"])
+        stress_level = st.text_input("Stress Level (0-10)", value="", placeholder="e.g. 5")
+        physical_activity = st.selectbox("Physical Activity Level", ["Low", "Moderate", "High"])
+        edema = st.radio("Edema", ["No", "Yes"], horizontal=True)
+        smoking_alcohol = st.radio("Smoking / Alcohol History", ["No", "Yes"], horizontal=True)
+
+        predict_btn = st.button("Check Risk Level", type="primary")
         st.markdown("</div>", unsafe_allow_html=True)
 
+    if predict_btn:
+        try:
+            input_payload = {
+                "Age": parse_number(age, "Age", as_int=True),
+                "BloodPressure": parse_number(blood_pressure, "Blood Pressure"),
+                "BloodSugar": parse_number(blood_sugar, "Blood Sugar"),
+                "BodyTemperature": parse_number(body_temperature, "Body Temperature"),
+                "HeartRate": parse_number(heart_rate, "Heart Rate", as_int=True),
+                "Hemoglobin": parse_number(hemoglobin, "Hemoglobin"),
+                "UrineProtein": parse_number(urine_protein, "Urine Protein"),
+                "Gravida": parse_number(gravida, "Gravida", as_int=True),
+                "Para": parse_number(para, "Para", as_int=True),
+                "Weight": parse_number(weight, "Weight"),
+                "Height": parse_number(height, "Height"),
+                "PreviousPregnancyComplications": 1 if complications == "Yes" else 0,
+                "StressLevel": parse_number(stress_level, "Stress Level", as_int=True),
+                "PhysicalActivityLevel": {"Low": 0, "Moderate": 1, "High": 2}[physical_activity],
+                "Edema": 1 if edema == "Yes" else 0,
+                "SmokingAlcoholHistory": 1 if smoking_alcohol == "Yes" else 0,
+            }
+        except ValueError as err:
+            st.error(str(err))
+            st.stop()
 
-st.markdown("### 💬 Women Health Chatbot")
-st.caption("Ask about diet plans, exercise, stress, supplements, and pregnancy care.")
-quick_cols = st.columns(4)
-quick_questions = ["Diet plan", "Exercise", "High BP", "Stress"]
-for i, qq in enumerate(quick_questions):
-    if quick_cols[i].button(qq):
-        st.session_state.chat_answer = chatbot_reply(qq)
+        sample = pd.DataFrame([input_payload])[feature_columns]
+        sample_scaled = scaler.transform(sample)
+        prediction = int(model.predict(sample_scaled)[0])
 
-q = st.text_input("Ask your question", value="", placeholder="e.g. suggest a 1-day healthy pregnancy diet")
-if st.button("Ask Chatbot"):
-    st.session_state.chat_answer = chatbot_reply(q)
+        st.session_state.last_prediction = prediction
+        st.session_state.last_payload = input_payload
+        st.session_state.risk_level_for_advice = risk_tier_for_advice(input_payload, prediction)
 
-if st.session_state.get("chat_answer"):
-    st.info(st.session_state.chat_answer)
+    if st.session_state.last_prediction is not None:
+        if st.session_state.last_prediction == 0:
+            st.success("✅ Predicted Risk Level: Low Risk")
+        else:
+            st.error("🚨 Predicted Risk Level: Medium Risk")
+
+        if st.button("Get Advice"):
+            base, notes = build_advice(st.session_state.last_payload, st.session_state.risk_level_for_advice)
+            st.markdown('<div class="advice-card">', unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="advice-title">Personalized Health Advice ({st.session_state.risk_level_for_advice.title()} Risk)</div>',
+                unsafe_allow_html=True,
+            )
+            st.write(base)
+            for tip in notes:
+                st.write(f"• {tip}")
+            st.markdown("</div>", unsafe_allow_html=True)
+
+with tab_chatbot:
+    st.markdown("### Ask Pregnancy Assistant")
+    st.caption("Real-time style chat. If OPENAI_API_KEY is set, replies use LLM API; otherwise safe local pregnancy bot responds.")
+
+    for msg in st.session_state.chat_history:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+
+    prompt = st.chat_input("Ask about diet, exercise, supplements, trimester, stress, warning signs...")
+    if prompt:
+        st.session_state.chat_history.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        llm_answer = ask_llm_if_configured(st.session_state.chat_history[-8:])
+        answer = llm_answer if llm_answer else local_pregnancy_bot(prompt)
+
+        with st.chat_message("assistant"):
+            st.markdown(answer)
+        st.session_state.chat_history.append({"role": "assistant", "content": answer})

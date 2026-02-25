@@ -53,3 +53,12 @@ For live prediction from this frontend, expose backend endpoint:
 - `POST /predict`
 - JSON request body with form fields
 - JSON response example: `{ "risk": "Low Risk" }`
+
+
+## Chatbot (Streamlit Tab)
+- Open `app.py` and use the **Women Health Chatbot** tab.
+- For local rule-based responses, no setup is required.
+- For LLM-like realtime responses, set:
+  - `OPENAI_API_KEY`
+  - optional: `OPENAI_MODEL` (default `gpt-4o-mini`)
+  - optional: `OPENAI_BASE_URL` (for OpenAI-compatible endpoints)
