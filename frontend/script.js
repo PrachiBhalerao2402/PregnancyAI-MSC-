@@ -27,11 +27,15 @@ form.addEventListener("submit", async (event) => {
 
     const data = await response.json();
     const risk = String(data.risk || "Medium Risk").toLowerCase();
-    const encoded = encodeURIComponent(risk.includes("low") ? "low" : "medium");
+    let encoded = "medium";
+    if (risk.includes("high")) encoded = "high";
+    else if (risk.includes("low")) encoded = "low";
     window.location.href = `result.html?risk=${encoded}`;
   } catch (error) {
     // fallback demo behavior if backend is not running
-    const fallbackRisk = payload.StressLevel <= 5 && payload.BloodPressure < 130 ? "low" : "medium";
+    let fallbackRisk = "medium";
+    if (payload.StressLevel >= 8 && payload.BloodPressure >= 140) fallbackRisk = "high";
+    else if (payload.StressLevel <= 5 && payload.BloodPressure < 130) fallbackRisk = "low";
     window.location.href = `result.html?risk=${fallbackRisk}`;
   }
 });

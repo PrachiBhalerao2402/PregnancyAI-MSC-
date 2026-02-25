@@ -9,13 +9,13 @@ st.set_page_config(page_title="Pregnancy Risk Predictor", page_icon="🩺", layo
 st.markdown(
     """
     <style>
-      .stApp {background: linear-gradient(180deg,#f7fbff 0%, #eef7ff 100%);} 
-      .form-wrap {background: #ffffff; border-radius: 16px; padding: 1.2rem 1.2rem 0.8rem 1.2rem;
-                  box-shadow: 0 8px 24px rgba(40,78,120,0.10); border: 1px solid #dceaf8;}
-      h1, h2, h3 {color: #1f4b7a !important;}
-      .small-muted {color:#5a7288; font-size:0.92rem; margin-top:-0.5rem; margin-bottom:1rem;}
+      .stApp {background: linear-gradient(180deg,#fff8f9 0%, #fff1f4 100%);} 
+      .form-wrap {background: #fffafb; border-radius: 16px; padding: 1.2rem 1.2rem 0.8rem 1.2rem;
+                  box-shadow: 0 10px 26px rgba(184,74,104,0.10); border: 1px solid #f1d3db;}
+      h1, h2, h3 {color: #7f2f47 !important;}
+      .small-muted {color:#8c5670; font-size:0.92rem; margin-top:-0.5rem; margin-bottom:1rem;}
       .stButton>button {width:100%; border-radius:10px; padding:0.58rem 0.9rem; font-weight:600;}
-      .advice-card {background:#fff7f7; border:1px solid #ffd8df; border-radius:12px; padding:0.8rem 0.9rem;}
+      .advice-card {background:#fff1f5; border:1px solid #f6c8d5; border-radius:12px; padding:0.8rem 0.9rem;}
       .advice-title {color:#b32648; font-weight:700; margin-bottom:0.35rem;}
     </style>
     """,
@@ -23,7 +23,7 @@ st.markdown(
 )
 
 st.title("🤰 Pregnancy Risk Prediction System")
-st.caption("Machine Learning powered screening for Low Risk vs Medium Risk assessment")
+st.caption("Machine Learning powered screening for Low / Medium risk with smart advice")
 
 try:
     artifact = joblib.load("models/best_pregnancy_risk_model.joblib")
@@ -34,6 +34,13 @@ except FileNotFoundError:
 model = artifact["model"]
 scaler = artifact["scaler"]
 feature_columns = artifact["feature_columns"]
+
+if "last_prediction" not in st.session_state:
+    st.session_state.last_prediction = None
+if "last_payload" not in st.session_state:
+    st.session_state.last_payload = None
+if "risk_level_for_advice" not in st.session_state:
+    st.session_state.risk_level_for_advice = None
 
 
 def parse_number(value: str, label: str, as_int: bool = False):
@@ -46,28 +53,55 @@ def parse_number(value: str, label: str, as_int: bool = False):
         raise ValueError(f"Invalid value for {label}. Use numeric input.") from exc
 
 
-def build_advice(payload, prediction):
-    notes = []
-    if payload["BloodPressure"] >= 130:
-        notes.append("Monitor blood pressure daily and reduce salty foods.")
-    if payload["BloodSugar"] >= 120:
-        notes.append("Limit sugary foods and follow a low-glycemic diet plan.")
-    if payload["Hemoglobin"] < 10.5:
-        notes.append("Increase iron-rich foods and discuss iron supplements with your doctor.")
-    if payload["StressLevel"] >= 7:
-        notes.append("Use daily stress-reduction routines (sleep, breathing, light walking).")
-    if payload["Edema"] == 1:
-        notes.append("Track swelling and seek medical review if swelling worsens.")
+def risk_tier_for_advice(payload, prediction):
+    """Return low/medium/high tier for advice page (model predicts low/medium)."""
+    severity_points = 0
+    severity_points += 1 if payload["BloodPressure"] >= 140 else 0
+    severity_points += 1 if payload["BloodSugar"] >= 140 else 0
+    severity_points += 1 if payload["Hemoglobin"] < 9.5 else 0
+    severity_points += 1 if payload["StressLevel"] >= 8 else 0
+    severity_points += 1 if payload["Edema"] == 1 else 0
+    severity_points += 1 if payload["PreviousPregnancyComplications"] == 1 else 0
 
-    if prediction == 0:
-        base = "Great signs overall. Continue prenatal vitamins, hydration, balanced nutrition, and regular antenatal checkups."
+    if prediction == 0 and severity_points <= 1:
+        return "low"
+    if severity_points >= 3:
+        return "high"
+    return "medium"
+
+
+def build_advice(payload, tier):
+    if tier == "low":
+        base = "Low Risk: Keep up the good work. Your current profile is favorable for pregnancy health."
+        tips = [
+            "Continue balanced nutrition with protein, iron, calcium, and folate.",
+            "Stay hydrated and maintain regular sleep.",
+            "Do light to moderate physical activity if approved by your doctor.",
+            "Attend routine antenatal checkups on schedule.",
+        ]
+    elif tier == "medium":
+        base = "Medium Risk: You need closer monitoring and lifestyle correction to prevent complications."
+        tips = [
+            "Track blood pressure and blood sugar at home weekly.",
+            "Reduce salt and refined sugar intake.",
+            "Manage stress using breathing exercises and rest.",
+            "Discuss a personalized follow-up plan with your gynecologist.",
+        ]
     else:
-        base = "Please consult your doctor soon for targeted monitoring and a safer pregnancy plan."
+        base = "High Risk: Please seek medical care urgently for specialist-guided pregnancy management."
+        tips = [
+            "Contact your obstetrician/gynecologist as soon as possible.",
+            "Do not skip monitoring for BP, sugar, and fetal health.",
+            "Follow strict medication and diet instructions from your doctor.",
+            "Visit emergency care immediately if severe headache, swelling, or bleeding occurs.",
+        ]
 
-    if not notes:
-        notes = ["Keep routine antenatal visits and maintain healthy lifestyle habits."]
+    if payload["Hemoglobin"] < 10.5:
+        tips.append("Add iron-rich foods and discuss iron supplements.")
+    if payload["StressLevel"] >= 7:
+        tips.append("Prioritize stress reduction and family support.")
 
-    return base, notes[:4]
+    return base, tips[:5]
 
 
 with st.container():
@@ -130,19 +164,26 @@ if predict_btn:
 
     sample = pd.DataFrame([input_payload])[feature_columns]
     sample_scaled = scaler.transform(sample)
-    prediction = model.predict(sample_scaled)[0]
+    prediction = int(model.predict(sample_scaled)[0])
 
-    if prediction == 0:
+    st.session_state.last_prediction = prediction
+    st.session_state.last_payload = input_payload
+    st.session_state.risk_level_for_advice = risk_tier_for_advice(input_payload, prediction)
+
+if st.session_state.last_prediction is not None:
+    if st.session_state.last_prediction == 0:
         st.success("✅ Predicted Risk Level: Low Risk")
     else:
         st.error("🚨 Predicted Risk Level: Medium Risk")
 
-    base_advice, notes = build_advice(input_payload, prediction)
-
     if st.button("Get Advice"):
+        base, notes = build_advice(st.session_state.last_payload, st.session_state.risk_level_for_advice)
         st.markdown('<div class="advice-card">', unsafe_allow_html=True)
-        st.markdown('<div class="advice-title">Personalized Health Advice</div>', unsafe_allow_html=True)
-        st.write(base_advice)
+        st.markdown(
+            f'<div class="advice-title">Personalized Health Advice ({st.session_state.risk_level_for_advice.title()} Risk)</div>',
+            unsafe_allow_html=True,
+        )
+        st.write(base)
         for tip in notes:
             st.write(f"• {tip}")
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
