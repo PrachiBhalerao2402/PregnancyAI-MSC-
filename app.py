@@ -70,6 +70,24 @@ def risk_tier_for_advice(payload, prediction):
     return "medium"
 
 
+
+
+def chatbot_reply(question: str) -> str:
+    q = question.lower().strip()
+    if not q:
+        return "Please type a question. 🌸"
+    if "diet" in q or "food" in q or "meal" in q:
+        return "Diet: Include iron-rich foods (spinach, lentils, dates), protein (eggs/paneer/fish), fruits, and 2.5–3L water daily. Reduce packaged sugar and excess salt."
+    if "exercise" in q or "walk" in q or "workout" in q:
+        return "Exercise: 20–30 min walk, prenatal stretching, and breathing/yoga 4–5 days per week if your doctor approves. Avoid high-impact routines."
+    if "bp" in q or "pressure" in q:
+        return "High BP care: check BP regularly, lower salt, sleep well, and consult your doctor quickly if readings remain high."
+    if "sugar" in q or "diabetes" in q:
+        return "Sugar care: low-GI meals, more fiber, smaller frequent meals, and regular glucose monitoring are helpful."
+    if "stress" in q or "anxiety" in q:
+        return "Stress care: breathing exercises, hydration, sleep routine, and daily light movement. Seek support from family/doctor."
+    return "I can help with diet plans, exercises, BP/sugar control, supplements, trimester-wise care, and warning signs."
+
 def build_advice(payload, tier):
     if tier == "low":
         base = "Low Risk: Keep up the good work. Your current profile is favorable for pregnancy health."
@@ -187,3 +205,19 @@ if st.session_state.last_prediction is not None:
         for tip in notes:
             st.write(f"• {tip}")
         st.markdown("</div>", unsafe_allow_html=True)
+
+
+st.markdown("### 💬 Women Health Chatbot")
+st.caption("Ask about diet plans, exercise, stress, supplements, and pregnancy care.")
+quick_cols = st.columns(4)
+quick_questions = ["Diet plan", "Exercise", "High BP", "Stress"]
+for i, qq in enumerate(quick_questions):
+    if quick_cols[i].button(qq):
+        st.session_state.chat_answer = chatbot_reply(qq)
+
+q = st.text_input("Ask your question", value="", placeholder="e.g. suggest a 1-day healthy pregnancy diet")
+if st.button("Ask Chatbot"):
+    st.session_state.chat_answer = chatbot_reply(q)
+
+if st.session_state.get("chat_answer"):
+    st.info(st.session_state.chat_answer)

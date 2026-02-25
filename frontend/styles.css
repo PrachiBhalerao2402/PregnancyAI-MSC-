@@ -27,6 +27,10 @@ body {
   padding: 14px;
   position: relative;
 }
+.bg-decor { position:absolute; opacity:.24; width:120px; z-index:0; }
+.deco-1 { top:70px; left:20px; }
+.deco-2 { top:280px; right:25px; }
+.card { position:relative; z-index:1; }
 
 .card {
   border-radius: 16px;

@@ -77,13 +77,13 @@ with open("pregnancy_risk_dataset_1015.csv", "w", newline="", encoding="utf-8") 
         score += 0.85 if smoking else 0.0
 
         # calibrated overlap to avoid perfect scores
-        score += random.gauss(0, 0.22)
+        score += random.gauss(0, 0.16)
 
         prob_medium = 1.0 / (1.0 + math.exp(-(-3.3 + score)))
         medium = 1 if random.random() < prob_medium else 0
 
         # mild label noise keeps scores around 90-95 rather than 100
-        if random.random() < 0.02:
+        if random.random() < 0.012:
             medium = 1 - medium
 
         low = 1 - medium
