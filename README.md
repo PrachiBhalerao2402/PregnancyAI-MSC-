@@ -29,7 +29,7 @@ python3 -m pip install -r requirements.txt
 python3 train_models.py
 ```
 
-The training script evaluates multiple parameter candidates for each model and many stratified split states, then selects the split with the highest number of models in the **90%–95% range** (and lowest total distance from this band).
+The training script evaluates multiple parameter candidates for each model and multiple stratified split states with progress logs, and stops early when all 4 models land in the **90%–95% range**. Otherwise, it keeps the best split by in-band count and lowest total distance.
 
 Generated artifacts:
 - `outputs/model_accuracy_comparison.png`
