@@ -8,6 +8,15 @@
   </head>
   <body>
     <main class="page form-page">
+      <section class="hero-card card">
+        <div>
+          <p class="eyebrow">Maternal Wellness</p>
+          <h2>Safe Pregnancy Companion</h2>
+          <p class="hero-text">Track your health profile, check risk level, and get personalized advice on diet and exercise.</p>
+        </div>
+        <img src="assets/maternal-care.svg" alt="Maternal care illustration" class="hero-image" />
+      </section>
+
       <section class="card form-card">
         <h1>Health Details</h1>
 
@@ -64,6 +73,42 @@
           <button type="submit" class="btn-primary">Check Risk Level</button>
           <button type="button" class="btn-secondary">◉ Talk to BabyBloom AI</button>
         </form>
+      </section>
+
+      <section class="card tip-cards">
+        <article>
+          <img src="assets/diet.svg" alt="Diet guidance" />
+          <h3>Diet Plan</h3>
+          <p>Iron-rich meals, hydration, and balanced protein for each trimester.</p>
+        </article>
+        <article>
+          <img src="assets/exercise.svg" alt="Exercise guidance" />
+          <h3>Exercise</h3>
+          <p>Safe prenatal movement tips for energy, posture, and stress management.</p>
+        </article>
+        <article>
+          <img src="assets/checkup.svg" alt="Regular checkup" />
+          <h3>Checkups</h3>
+          <p>Know when to visit your doctor and monitor warning signs early.</p>
+        </article>
+      </section>
+
+      <section class="card chatbot-card">
+        <h3>💬 Women Health Chatbot</h3>
+        <p class="chat-sub">Ask about diet plans, exercises, stress, BP, sugar, supplements, and daily care.</p>
+        <div id="chat-window" class="chat-window">
+          <div class="bubble bot">Hello! I can help with pregnancy diet, exercise, and health tips. 🌸</div>
+        </div>
+        <div class="quick-asks">
+          <button class="chip" data-q="diet plan">Diet plan</button>
+          <button class="chip" data-q="exercise">Exercise</button>
+          <button class="chip" data-q="high blood pressure">High BP</button>
+          <button class="chip" data-q="stress">Stress</button>
+        </div>
+        <div class="chat-input-row">
+          <input id="chat-input" type="text" placeholder="Ask your health question..." />
+          <button id="chat-send" class="btn-primary mini">Send</button>
+        </div>
       </section>
     </main>
 
