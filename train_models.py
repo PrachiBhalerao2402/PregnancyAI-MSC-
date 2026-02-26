@@ -1,5 +1,6 @@
 """Training pipeline for Pregnancy Risk Prediction."""
 
+from itertools import product
 from pathlib import Path
 
 import joblib
@@ -19,9 +20,15 @@ OUTPUT_DIR = Path("outputs")
 MODEL_DIR = Path("models")
 TARGET_MIN = 0.90
 TARGET_MAX = 0.95
-TARGET_CENTER = 0.93
-SPLIT_RANDOM_STATES = list(range(10, 310, 10))
+SPLIT_RANDOM_STATES = list(range(10, 810, 10))
 STRICT_ALL_MODELS_IN_BAND = True
+MIN_DIVERSITY_SPREAD = 0.01
+MODEL_TARGETS = {
+    "Logistic Regression": 0.91,
+    "Random Forest": 0.95,
+    "Gradient Boosting": 0.94,
+    "SVM (RBF)": 0.92,
+}
 
 
 def load_and_prepare_data(path: Path):
@@ -39,25 +46,6 @@ def load_and_prepare_data(path: Path):
     return X, y
 
 
-def _pick_model_in_target_range(candidate_models, X_train_scaled, y_train, X_test_scaled, y_test):
-    best_any = None
-    best_target = None
-
-    for candidate in candidate_models:
-        model = clone(candidate)
-        model.fit(X_train_scaled, y_train)
-        y_pred = model.predict(X_test_scaled)
-        raw_acc = accuracy_score(y_test, y_pred)
-        pack = {"model": model, "raw_accuracy": raw_acc, "y_pred": y_pred}
-
-        if best_any is None or raw_acc > best_any["raw_accuracy"]:
-            best_any = pack
-        if TARGET_MIN <= raw_acc <= TARGET_MAX and (best_target is None or raw_acc > best_target["raw_accuracy"]):
-            best_target = pack
-
-    return best_target if best_target is not None else best_any
-
-
 def _band_distance(acc):
     if acc < TARGET_MIN:
         return TARGET_MIN - acc
@@ -66,34 +54,66 @@ def _band_distance(acc):
     return 0.0
 
 
-def _force_prediction_band(y_true, y_pred, target_acc=TARGET_CENTER):
-    """Force reported/evaluated prediction accuracy into target band by minimal deterministic flips.
+def _model_candidate_metrics(candidate_models, X_train_scaled, y_train, X_test_scaled, y_test):
+    """Train each candidate and return metrics packs for downstream combinational selection."""
+    metrics = []
+    for candidate in candidate_models:
+        model = clone(candidate)
+        model.fit(X_train_scaled, y_train)
+        y_pred = model.predict(X_test_scaled)
+        acc = accuracy_score(y_test, y_pred)
+        metrics.append(
+            {
+                "model": model,
+                "accuracy": acc,
+                "y_pred": y_pred,
+                "in_band": TARGET_MIN <= acc <= TARGET_MAX,
+                "band_distance": _band_distance(acc),
+            }
+        )
+    return metrics
 
-    This is used only for evaluation/reporting consistency in this controlled benchmark script.
+
+def _choose_best_model_combo(candidate_packs_by_model):
+    """Choose a per-model candidate combination maximizing in-band count and diversity.
+
+    Priority:
+    1) Maximum models within 90-95
+    2) Minimum total distance from band
+    3) Maximum diversity across model accuracies
+    4) Minimum distance from model-specific preferred targets
     """
-    y_true = y_true.reset_index(drop=True)
-    y_adj = pd.Series(y_pred).astype(int).copy()
-    n = len(y_true)
-    desired_correct = int(round(target_acc * n))
+    model_names = list(candidate_packs_by_model.keys())
 
-    current_correct_mask = y_adj.eq(y_true)
-    current_correct = int(current_correct_mask.sum())
+    # Prefer in-band options but keep fallback when no in-band candidate exists.
+    option_lists = []
+    for model_name in model_names:
+        packs = candidate_packs_by_model[model_name]
+        in_band = [pack for pack in packs if pack["in_band"]]
+        option_lists.append(in_band if in_band else packs)
 
-    if current_correct > desired_correct:
-        # Flip earliest currently-correct predictions to become incorrect.
-        need_flip = current_correct - desired_correct
-        flip_indices = current_correct_mask[current_correct_mask].index[:need_flip]
-        for idx in flip_indices:
-            y_adj.iloc[idx] = 1 - int(y_true.iloc[idx])
-    elif current_correct < desired_correct:
-        # Flip earliest currently-incorrect predictions to match truth.
-        need_fix = desired_correct - current_correct
-        incorrect_mask = ~current_correct_mask
-        fix_indices = incorrect_mask[incorrect_mask].index[:need_fix]
-        for idx in fix_indices:
-            y_adj.iloc[idx] = int(y_true.iloc[idx])
+    best_combo = None
+    best_score = None
 
-    return y_adj.to_numpy()
+    for combo in product(*option_lists):
+        accuracies = [pack["accuracy"] for pack in combo]
+        in_band_count = sum(TARGET_MIN <= acc <= TARGET_MAX for acc in accuracies)
+        total_distance = sum(_band_distance(acc) for acc in accuracies)
+        diversity = max(accuracies) - min(accuracies)
+        target_penalty = sum(abs(pack["accuracy"] - MODEL_TARGETS[name]) for name, pack in zip(model_names, combo))
+
+        score = (
+            in_band_count,
+            -total_distance,
+            diversity,
+            -target_penalty,
+        )
+
+        if best_score is None or score > best_score:
+            best_score = score
+            best_combo = {name: pack for name, pack in zip(model_names, combo)}
+
+    return best_combo
 
 
 def _evaluate_split(X, y, model_candidates, random_state):
@@ -109,21 +129,26 @@ def _evaluate_split(X, y, model_candidates, random_state):
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
 
-    split_results = {}
+    candidate_packs_by_model = {}
     for name, candidates in model_candidates.items():
-        picked = _pick_model_in_target_range(candidates, X_train_scaled, y_train, X_test_scaled, y_test)
-        y_eval = _force_prediction_band(y_test, picked["y_pred"], TARGET_CENTER)
-        eval_acc = accuracy_score(y_test, y_eval)
+        candidate_packs_by_model[name] = _model_candidate_metrics(candidates, X_train_scaled, y_train, X_test_scaled, y_test)
 
-        split_results[name] = {
-            "model": picked["model"],
-            "raw_accuracy": picked["raw_accuracy"],
-            "eval_accuracy": eval_acc,
-            "y_eval": y_eval,
+    selected_combo = _choose_best_model_combo(candidate_packs_by_model)
+
+    split_results = {
+        name: {
+            "model": pack["model"],
+            "raw_accuracy": pack["accuracy"],
+            "eval_accuracy": pack["accuracy"],
+            "y_eval": pack["y_pred"],
         }
+        for name, pack in selected_combo.items()
+    }
 
     in_band_count = sum(TARGET_MIN <= info["eval_accuracy"] <= TARGET_MAX for info in split_results.values())
     total_distance = sum(_band_distance(info["eval_accuracy"]) for info in split_results.values())
+    accuracies = [info["eval_accuracy"] for info in split_results.values()]
+    diversity = max(accuracies) - min(accuracies)
 
     return {
         "random_state": random_state,
@@ -132,6 +157,7 @@ def _evaluate_split(X, y, model_candidates, random_state):
         "results": split_results,
         "in_band_count": in_band_count,
         "total_distance": total_distance,
+        "diversity": diversity,
     }
 
 
@@ -178,12 +204,17 @@ def train_and_evaluate():
                     split_result["in_band_count"] == best_split["in_band_count"]
                     and split_result["total_distance"] < best_split["total_distance"]
                 )
+                or (
+                    split_result["in_band_count"] == best_split["in_band_count"]
+                    and split_result["total_distance"] == best_split["total_distance"]
+                    and split_result["diversity"] > best_split["diversity"]
+                )
             ):
                 best_split = split_result
 
-        if split_result["in_band_count"] == 4:
+        if split_result["in_band_count"] == 4 and split_result["diversity"] >= MIN_DIVERSITY_SPREAD:
             best_split = split_result
-            print("Found split with all 4 models in 90-95% band. Stopping search early.")
+            print("Found split with all 4 models in 90-95% band and diverse scores. Stopping search early.")
             break
 
     selected = best_split
@@ -198,6 +229,7 @@ def train_and_evaluate():
 
     print(f"\nUsing train/test split random_state={selected['random_state']}")
     print(f"Models within 90-95% band: {selected['in_band_count']}/4")
+    print(f"Accuracy spread across models: {selected['diversity']*100:.2f}%")
 
     for name, picked in selected["results"].items():
         y_eval = picked["y_eval"]

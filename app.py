@@ -258,15 +258,21 @@ with tab_chatbot:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    prompt = st.chat_input("Ask about diet, exercise, supplements, trimester, stress, warning signs...")
-    if prompt:
-        st.session_state.chat_history.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
+    prompt = st.text_input(
+        "Ask a pregnancy question",
+        value="",
+        placeholder="Ask about diet, exercise, supplements, trimester, stress, warning signs...",
+        key="chat_prompt",
+    )
+    send_clicked = st.button("Send", key="send_chat", type="primary")
 
-        llm_answer = ask_llm_if_configured(st.session_state.chat_history[-8:])
-        answer = llm_answer if llm_answer else local_pregnancy_bot(prompt)
-
-        with st.chat_message("assistant"):
-            st.markdown(answer)
-        st.session_state.chat_history.append({"role": "assistant", "content": answer})
+    if send_clicked:
+        prompt = prompt.strip()
+        if not prompt:
+            st.warning("Please type a message before sending.")
+        else:
+            st.session_state.chat_history.append({"role": "user", "content": prompt})
+            llm_answer = ask_llm_if_configured(st.session_state.chat_history[-8:])
+            answer = llm_answer if llm_answer else local_pregnancy_bot(prompt)
+            st.session_state.chat_history.append({"role": "assistant", "content": answer})
+            st.rerun()
