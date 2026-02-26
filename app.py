@@ -117,21 +117,33 @@ def local_pregnancy_bot(question: str) -> str:
         return "Please type your question 🌸"
 
     rulebook = {
-        "diet": "Pregnancy diet: include leafy greens, lentils, eggs/paneer/fish, fruits, nuts, and 2.5–3L water daily. Avoid raw/unpasteurized items and excess sugar.",
-        "exercise": "Safe exercise: 20–30 mins walk, pelvic floor work, prenatal stretching/yoga 4–5 days weekly if approved by your doctor.",
-        "bp": "For high BP: reduce salt, monitor BP at home, rest on left side, and keep regular obstetric follow-up.",
-        "pressure": "For high BP: reduce salt, monitor BP at home, rest on left side, and keep regular obstetric follow-up.",
-        "sugar": "For blood sugar: small frequent meals, low-GI carbs, high-fiber vegetables, and regular glucose checks are helpful.",
-        "stress": "Stress support: breathing exercises, proper sleep, hydration, short walks, and talking with family/doctor helps.",
-        "supplement": "Common supplements include folic acid, iron, calcium, and vitamin D based on doctor advice.",
-        "trimester": "Trimester care: 1st—folic acid and nausea care; 2nd—anomaly scan and nutrition; 3rd—BP, fetal movement, and delivery planning.",
-        "warning": "Warning signs: severe headache, vision changes, swelling, bleeding, severe abdominal pain, fluid leak, reduced fetal movement. Seek urgent care.",
+        "diet": "Diet plan: eat protein in each meal (eggs/paneer/fish/legumes), 2 fruits/day, green vegetables, nuts, and 2.5–3L water. Avoid unpasteurized/raw foods.",
+        "exercise": "Exercise plan: 20–30 min brisk walk, prenatal stretches, and pelvic-floor training 4–5 days/week with doctor approval.",
+        "bp": "For blood pressure: reduce salt, monitor BP daily, sleep on left side, and contact your obstetrician if BP stays high.",
+        "pressure": "For blood pressure: reduce salt, monitor BP daily, sleep on left side, and contact your obstetrician if BP stays high.",
+        "sugar": "For blood sugar: switch to low-GI carbs, split meals into smaller portions, include fiber/protein, and check glucose regularly.",
+        "stress": "For stress: deep breathing 10 minutes twice daily, light walks, fixed sleep time, and emotional support from family.",
+        "supplement": "Common supplements: folic acid, iron, calcium, vitamin D (only as prescribed by your doctor).",
+        "trimester": "Trimester focus: 1st—nausea + folate; 2nd—anomaly scan + iron/calcium; 3rd—fetal movement + BP + delivery planning.",
+        "warning": "Emergency signs: bleeding, severe headache, blurred vision, severe pain, reduced fetal movement, leaking fluid, breathlessness. Seek urgent care.",
+        "nausea": "For nausea: take small frequent meals, keep dry snacks, ginger/lemon water, and avoid long empty stomach gaps.",
+        "anemia": "For low Hb: iron-rich foods + vitamin C combination, avoid tea/coffee around meals, discuss iron therapy with doctor.",
+        "sleep": "Sleep plan: 7–9 hrs/night, left lateral sleeping posture, avoid heavy dinner, and reduce screen time before bed.",
+        "week": "If you share pregnancy week, I can give week-specific diet, exercise, scans, and warning-sign guidance.",
     }
-    for key, answer in rulebook.items():
-        if key in q:
-            return answer
 
-    return "I can help with pregnancy diet, exercise, BP/sugar control, trimester care, supplements, and warning signs. Ask a specific question."
+    matches = [answer for key, answer in rulebook.items() if key in q]
+    if matches:
+        return "\n\n".join(matches[:2])
+
+    return (
+        "I can still help. Please ask in this format for best answers:\n"
+        "• 'Diet plan for 5th month'\n"
+        "• 'Exercise for back pain in pregnancy'\n"
+        "• 'High BP/sugar what to do?'\n"
+        "• 'What tests/scans this trimester?'\n"
+        "• 'Emergency warning signs?'"
+    )
 
 
 def ask_llm_if_configured(messages: List[Dict[str, str]]) -> str | None:
