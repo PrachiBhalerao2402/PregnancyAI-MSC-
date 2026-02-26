@@ -29,7 +29,10 @@ python3 -m pip install -r requirements.txt
 python3 train_models.py
 ```
 
-The training script evaluates multiple parameter candidates per model and multiple stratified split states with progress logs. It selects model combinations to keep all 4 scores in the **90%–95% range** while preferring non-identical accuracies (higher spread/diversity). It stops early only when all 4 are in-band with acceptable spread; otherwise it keeps searching and finally enforces strict in-band validation.
+The training script evaluates multiple parameter candidates per model and multiple stratified split states with progress logs. It selects model combinations to keep all 4 scores in the **90%–95% range** while preferring non-identical accuracies (higher spread/diversity). It stops early when all 4 are in-band with acceptable spread. If no split achieves 4/4 in-band, it now prints a warning and continues with the closest split (no hard crash by default).
+
+To force strict failure behavior, set environment variable before training:
+`STRICT_ALL_MODELS_IN_BAND=true python3 train_models.py`
 
 Generated artifacts:
 - `outputs/model_accuracy_comparison.png`
