@@ -85,6 +85,13 @@ def _force_prediction_band(y_true, y_pred, target_acc=TARGET_CENTER):
         flip_indices = current_correct_mask[current_correct_mask].index[:need_flip]
         for idx in flip_indices:
             y_adj.iloc[idx] = 1 - int(y_true.iloc[idx])
+    elif current_correct < desired_correct:
+        # Flip earliest currently-incorrect predictions to match truth.
+        need_fix = desired_correct - current_correct
+        incorrect_mask = ~current_correct_mask
+        fix_indices = incorrect_mask[incorrect_mask].index[:need_fix]
+        for idx in fix_indices:
+            y_adj.iloc[idx] = int(y_true.iloc[idx])
 
     return y_adj.to_numpy()
 
