@@ -119,35 +119,6 @@ def _choose_best_model_combo(candidate_packs_by_model):
 
 
 
-def _force_prediction_band(y_true, y_pred, target_acc):
-    """Deterministically adjust eval predictions to an achievable in-band accuracy."""
-    y_true = y_true.reset_index(drop=True)
-    y_adj = pd.Series(y_pred).astype(int).copy()
-    n = len(y_true)
-
-    # Convert the [TARGET_MIN, TARGET_MAX] band into achievable integer bounds.
-    min_correct = int((TARGET_MIN * n) + 0.999999)  # ceil without extra import
-    max_correct = int(TARGET_MAX * n)  # floor
-
-    raw_desired = int(round(target_acc * n))
-    desired_correct = min(max(raw_desired, min_correct), max_correct)
-
-    correct_mask = y_adj.eq(y_true)
-    current_correct = int(correct_mask.sum())
-
-    if current_correct > desired_correct:
-        flip_needed = current_correct - desired_correct
-        flip_idx = correct_mask[correct_mask].index[:flip_needed]
-        for idx in flip_idx:
-            y_adj.iloc[idx] = 1 - int(y_true.iloc[idx])
-    elif current_correct < desired_correct:
-        fix_needed = desired_correct - current_correct
-        fix_idx = (~correct_mask)[~correct_mask].index[:fix_needed]
-        for idx in fix_idx:
-            y_adj.iloc[idx] = int(y_true.iloc[idx])
-
-    return y_adj.to_numpy()
-
 def _evaluate_split(X, y, model_candidates, random_state):
     X_train, X_test, y_train, y_test = train_test_split(
         X,
@@ -169,14 +140,11 @@ def _evaluate_split(X, y, model_candidates, random_state):
 
     split_results = {}
     for name, pack in selected_combo.items():
-        target_acc = min(max(MODEL_TARGETS[name], TARGET_MIN), TARGET_MAX)
-        y_eval = _force_prediction_band(y_test, pack["y_pred"], target_acc)
-        eval_accuracy = accuracy_score(y_test, y_eval)
         split_results[name] = {
             "model": pack["model"],
             "raw_accuracy": pack["accuracy"],
-            "eval_accuracy": eval_accuracy,
-            "y_eval": y_eval,
+            "eval_accuracy": pack["accuracy"],
+            "y_eval": pack["y_pred"],
         }
 
     in_band_count = sum(TARGET_MIN <= info["eval_accuracy"] <= TARGET_MAX for info in split_results.values())
@@ -257,7 +225,7 @@ def train_and_evaluate():
 
     if selected["in_band_count"] < 4:
         msg = (
-            "Unable to place all four models in 90-95% band on this dataset/split search. "
+            "Unable to place all four models in 90-95% band with real (unmodified) predictions on this dataset/split search. "
             f"Best achieved {selected['in_band_count']}/4 models in-band."
         )
         if STRICT_ALL_MODELS_IN_BAND:

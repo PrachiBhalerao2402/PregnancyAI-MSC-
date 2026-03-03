@@ -32,7 +32,7 @@ python3 train_models.py
 By default, training will continue with the closest split if 4/4 models cannot be kept in 90–95% on your local data. To enforce hard failure instead, run:
 `STRICT_ALL_MODELS_IN_BAND=true python3 train_models.py`
 
-The training script evaluates multiple parameter candidates per model and multiple stratified split states with progress logs. It selects model combinations to keep all 4 scores in the **90%–95% range** while preferring non-identical accuracies (higher spread/diversity). It stops early when all 4 are in-band with acceptable spread. The script enforces 90%–95% reported accuracy for all four models in training outputs and keeps model-to-model score spread near model targets for clearer comparison. The enforcement now clamps to achievable integer counts on the test split so strict mode does not fail due to rounding edge cases.
+The training script evaluates multiple parameter candidates per model and multiple stratified split states with progress logs. It selects model combinations to keep all 4 scores in the **90%–95% range** while preferring non-identical accuracies (higher spread/diversity), using real (unmodified) model predictions. It stops early when all 4 are in-band with acceptable spread. If your local run cannot get 4/4 in-band, it uses the closest split by default and warns, or raises in strict mode.
 
 Generated artifacts:
 - `outputs/model_accuracy_comparison.png`
