@@ -146,30 +146,41 @@ def local_pregnancy_bot(question: str) -> str:
     )
 
 
-def ask_llm_if_configured(messages: List[Dict[str, str]]) -> str | None:
-    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+def ask_gemini_if_configured(messages: List[Dict[str, str]]) -> str | None:
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
     if not api_key:
         return None
 
-    model_name = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-    url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1/chat/completions")
+    model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+
+    convo = []
+    for item in messages:
+        role = "model" if item["role"] == "assistant" else "user"
+        convo.append({"role": role, "parts": [{"text": item["content"]}]})
+
     payload = {
-        "model": model_name,
-        "messages": [
-            {
-                "role": "system",
-                "content": "You are a compassionate prenatal health assistant. Give safe, practical guidance and remind user to consult doctors for urgent symptoms.",
-            }
-        ]
-        + messages,
-        "temperature": 0.4,
+        "system_instruction": {
+            "parts": [
+                {
+                    "text": "You are a compassionate prenatal health assistant. Give safe, practical guidance and remind users to seek a doctor for urgent symptoms."
+                }
+            ]
+        },
+        "contents": convo,
+        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 450},
     }
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+
     try:
-        resp = requests.post(url, json=payload, headers=headers, timeout=25)
+        resp = requests.post(url, json=payload, timeout=25)
         if resp.ok:
             data = resp.json()
-            return data["choices"][0]["message"]["content"].strip()
+            candidates = data.get("candidates", [])
+            if candidates:
+                parts = candidates[0].get("content", {}).get("parts", [])
+                text = "".join(part.get("text", "") for part in parts).strip()
+                if text:
+                    return text
     except Exception:
         return None
     return None
@@ -264,7 +275,7 @@ with tab_predict:
 
 with tab_chatbot:
     st.markdown("### Ask Pregnancy Assistant")
-    st.caption("Real-time style chat. If OPENAI_API_KEY is set, replies use LLM API; otherwise safe local pregnancy bot responds.")
+    st.caption("Real-time style chat. If GEMINI_API_KEY is set, replies use Gemini API; otherwise safe local pregnancy bot responds.")
 
     for msg in st.session_state.chat_history:
         with st.chat_message(msg["role"]):
@@ -284,7 +295,7 @@ with tab_chatbot:
             st.warning("Please type a message before sending.")
         else:
             st.session_state.chat_history.append({"role": "user", "content": prompt})
-            llm_answer = ask_llm_if_configured(st.session_state.chat_history[-8:])
+            llm_answer = ask_gemini_if_configured(st.session_state.chat_history[-8:])
             answer = llm_answer if llm_answer else local_pregnancy_bot(prompt)
             st.session_state.chat_history.append({"role": "assistant", "content": answer})
             st.rerun()

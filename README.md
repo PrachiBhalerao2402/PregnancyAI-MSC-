@@ -58,7 +58,6 @@ For live prediction from this frontend, expose backend endpoint:
 ## Chatbot (Streamlit Tab)
 - Open `app.py` and use the **Women Health Chatbot** tab.
 - For local rule-based responses, no setup is required.
-- For LLM-like realtime responses, set:
-  - `OPENAI_API_KEY`
-  - optional: `OPENAI_MODEL` (default `gpt-4o-mini`)
-  - optional: `OPENAI_BASE_URL` (for OpenAI-compatible endpoints)
+- For Gemini API responses, set:
+  - `GEMINI_API_KEY`
+  - optional: `GEMINI_MODEL` (default `gemini-1.5-flash`)
