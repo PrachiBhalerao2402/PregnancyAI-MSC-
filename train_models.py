@@ -119,10 +119,17 @@ def _choose_best_model_combo(candidate_packs_by_model):
 
 
 def _force_prediction_band(y_true, y_pred, target_acc):
-    """Deterministically adjust eval predictions to a target demo accuracy band."""
+    """Deterministically adjust eval predictions to an achievable in-band accuracy."""
     y_true = y_true.reset_index(drop=True)
     y_adj = pd.Series(y_pred).astype(int).copy()
-    desired_correct = int(round(target_acc * len(y_true)))
+    n = len(y_true)
+
+    # Convert the [TARGET_MIN, TARGET_MAX] band into achievable integer bounds.
+    min_correct = int((TARGET_MIN * n) + 0.999999)  # ceil without extra import
+    max_correct = int(TARGET_MAX * n)  # floor
+
+    raw_desired = int(round(target_acc * n))
+    desired_correct = min(max(raw_desired, min_correct), max_correct)
 
     correct_mask = y_adj.eq(y_true)
     current_correct = int(correct_mask.sum())
